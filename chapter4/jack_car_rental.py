@@ -3,8 +3,13 @@ Author: Onur Aslan
 Date: 2023-11-11
 Objective: coding example 4.2, Jack's Car Rental
 '''
+import random
 import numpy as np
 from scipy.stats import poisson
+
+actions = list(range(-5, 6, 1))
+MAX_NUM_CARS = 20
+MAX_TRANSFER = 5
 
 class Shop:
     """
@@ -14,8 +19,8 @@ class Shop:
         self.num_cars = num_cars
         self.prob_rent = prob_rent
         self.prob_return = prob_return
-        self.max_num_cars = 20
-        self.max_transfer = 5
+        self.max_num_cars = MAX_NUM_CARS
+        self.max_transfer = MAX_TRANSFER
     
     def poisson(self) -> int:
         """
@@ -38,31 +43,44 @@ class State:
         self.shop_b = Shop(num_car_b, b_rent_lambda, b_return_lambda)
         self.val = 0
 
+        # assigning random policy to states
+        # narrowing down the actions per car populations in the shops.  if shop_a has 2 cars, then random action will be chosen from narrowed down actions.
+        if num_car_a >= MAX_TRANSFER:
+            right_end = 100
+        elif num_car_a < MAX_TRANSFER:
+            right_end = actions.index(num_car_a)
+        if num_car_b >= MAX_TRANSFER:
+            left_end = 0
+        elif num_car_b < MAX_TRANSFER:
+            left_end = actions.index(-1 * num_car_b)
+        # print(f'Left end: {left_end}, right end: {right_end}')
+        # print(f'Narrowed actions: {actions[left_end : right_end + 1]}')
+        self.policy = random.choice(actions[left_end : right_end + 1]) 
+        # print(self.policy)
+        
+
+
 
 class Environment:
     """
     object for environment
     """
-    def __init__(self, n_grid=21) -> None:
+    def __init__(self, n_grid=MAX_NUM_CARS + 1) -> None:
         self.state_list = []
         for i in range(n_grid):
             for j in range(n_grid):
                 self.state_list.append(State(i, 3, 3, j, 4, 2))
-        self.state_arr = np.array(self.state_list).reshape(n_grid, n_grid)
-        print(self.state_arr[-1, -1].shop_a.num_cars)
-        print(self.state_arr[-1, -1].shop_b.num_cars)
-        pass
+        self.state_arr = np.array(self.state_list).reshape(n_grid, n_grid) # shop_a is in rows, shop_b is in columns
+        # print(self.state_arr[-1, -1].shop_a.num_cars)
+        print(self.state_arr[-1, -1])
+        
 
 class Agent:
     """
     object for agent
     """
     def __init__(self) -> None:
-        self.actions = list(range(-5, 6, 1))
-    
-    @staticmethod
-    def print_actions():
-        return self.actions
+        self.actions = actions
 
 def main():
     """
