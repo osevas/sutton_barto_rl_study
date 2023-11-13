@@ -22,7 +22,7 @@ class Shop:
         self.max_num_cars = MAX_NUM_CARS
         self.max_transfer = MAX_TRANSFER
     
-    def poisson(self) -> int:
+    def poisson(self) -> list:
         """
         function for Poisson distribution
 
@@ -32,7 +32,15 @@ class Shop:
         Returns:
             int: Poisson probability
         """
-        return None
+        rv = poisson(self.prob_rent)
+        x = np.arange(rv.ppf(0.0001), rv.ppf(0.9999))
+        rent_probs = [(item, rv.pmf(item)) for item in x] # rent count and its probability from Poisson distribution
+
+        rv = poisson(self.prob_return)
+        x = np.arange(rv.ppf(0.0001), rv.ppf(0.9999))
+        return_probs = [(item, rv.pmf(item)) for item in x] # return count and its probability from Poisson distribution
+
+        return rent_probs, return_probs
 
 class State:
     """
@@ -72,7 +80,7 @@ class Environment:
                 self.state_list.append(State(i, 3, 3, j, 4, 2))
         self.state_arr = np.array(self.state_list).reshape(n_grid, n_grid) # shop_a is in rows, shop_b is in columns
         # print(self.state_arr[-1, -1].shop_a.num_cars)
-        print(self.state_arr[-1, -1])
+        # print(self.state_arr[-1, -1])
         
 
 class Agent:
@@ -81,6 +89,25 @@ class Agent:
     """
     def __init__(self) -> None:
         self.actions = actions
+
+def policy_eval(state_array):
+    """
+    Policy evaluation in state array
+
+    Args:
+        state_array (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    delta = 0
+    # looping over states in Environment.state_arr
+    for i in range(state_array.shape[0]):
+        for j in range(state_array.shape[1]):
+            print(f'# of cars in State {i},{j}: {state_array[i, j].shop_a.num_cars}')
+
+    return None
+
 
 def main():
     """
@@ -91,8 +118,9 @@ def main():
     """
 
     # Initialization
-    agent1 = Agent()
+    # agent1 = Agent()
     env1 = Environment()
+    policy_eval(env1.state_arr)
     
     return None
 
