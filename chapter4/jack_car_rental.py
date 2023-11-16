@@ -7,6 +7,7 @@ import random
 import numpy as np
 from scipy.stats import poisson
 import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D
 
 actions = list(range(-5, 6, 1))
 MAX_NUM_CARS = 20
@@ -90,6 +91,85 @@ class Environment:
 
         # print(self.state_arr[-1, -1].shop_a.num_cars)
         # print(self.state_arr[-1, -1])
+    
+    def policy_eval(self):
+        """
+        Policy evaluation in state array
+
+        Args:
+            state_array (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        print('Policy evaluation')
+        delta = 1
+        iteration = 0
+
+        while (delta > THETA) and (iteration < 30):
+            # looping over states in Environment.state_arr
+            for i in range(self.state_arr.shape[0]):
+                for j in range(self.state_arr.shape[1]):
+                    # print(f'# of cars in State {i},{j}: {state_array[i, j].shop_a.num_cars}')
+                    state_value_temp = self.state_arr[i, j].val # recording initial state value
+
+                    rent_prob_a, return_prob_a = self.state_arr[i, j].shop_a.poisson()
+                    rent_prob_b, return_prob_b = self.state_arr[i, j].shop_b.poisson()
+
+                    state_new_value = 0
+                    # Looping over rent and return probabilities for shop_a and shop_b
+                    for rent_a in rent_prob_a: # rent_a and rent_b are tuples -> (rent count, rent probability)
+                        for return_a in return_prob_a:
+                            for rent_b in rent_prob_b:
+                                for return_b in return_prob_b:
+                                    # print(f'Rent prob: {rent_a[1]}, Return prob: {return_a[1]}')
+                                    # print(f'Rent prob: {rent_b[1]}, Return prob: {return_b[1]}')
+                                    # print(f'Policy: {state_array[i, j].policy}')
+                                    # print(f'Value: {state_array[i, j].val}')
+                                    state_new_value += calc_sigma(rent_a, self.state_arr, rent_b, return_a, return_b, i, j, self.state_arr[i, j].policy)
+                                    
+                    self.state_arr[i, j].val = state_new_value
+                    delta = max(delta, abs(state_value_temp - self.state_arr[i, j].val))
+                    
+            iteration += 1
+        print(f'Delta: {delta}')
+        print(f'Iteration: {iteration}')
+        return None
+    
+    def policy_improvement(self):
+        """
+        policy improvement of policy iteration
+
+        Args:
+            state_array (_type_): _description_
+        """
+        print('Policy improvement')
+        policy_stable = np.ones((self.state_arr.shape[0], self.state_arr.shape[1]), dtype=bool)
+        for i in range(self.state_arr.shape[0]):
+            for j in range(self.state_arr.shape[1]): # iterating over each state
+                # print(f'# of cars in State {i},{j}: {self.state_arr[i, j].shop_a.num_cars}')
+                old_action = self.state_arr[i, j].policy # recording initial state value
+
+                rent_prob_a, return_prob_a = self.state_arr[i, j].shop_a.poisson()
+                rent_prob_b, return_prob_b = self.state_arr[i, j].shop_b.poisson()
+
+                action_that_max = []
+                for policy in actions: # iterating over each action
+                    state_new_value = 0
+                    # Looping over rent and return probabilities for shop_a and shop_b
+                    for rent_a in rent_prob_a: # rent_a and rent_b are tuples -> (rent count, rent probability)
+                        for return_a in return_prob_a:
+                            for rent_b in rent_prob_b:
+                                for return_b in return_prob_b:
+                                    state_new_value += calc_sigma(rent_a, self.state_arr, rent_b, return_a, return_b, i, j, policy)
+                    action_that_max.append(state_new_value)
+                self.state_arr[i, j].policy = actions[np.argmax(action_that_max)]
+
+                if old_action != self.state_arr[i, j].policy:
+                    policy_stable[i, j] = False
+        
+        return policy_stable
+
         
 
 class Agent:
@@ -139,85 +219,8 @@ def calc_sigma(rent_a, state_array, rent_b, return_a, return_b, i, j, policy):
         state_new_value = 0
     return state_new_value
 
-def policy_eval(state_array):
-    """
-    Policy evaluation in state array
 
-    Args:
-        state_array (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    print('Policy evaluation')
-    delta = 1
-    iteration = 0
-
-    while (delta > THETA) and (iteration < 30):
-        # looping over states in Environment.state_arr
-        for i in range(state_array.shape[0]):
-            for j in range(state_array.shape[1]):
-                # print(f'# of cars in State {i},{j}: {state_array[i, j].shop_a.num_cars}')
-                state_value_temp = state_array[i, j].val # recording initial state value
-
-                rent_prob_a, return_prob_a = state_array[i, j].shop_a.poisson()
-                rent_prob_b, return_prob_b = state_array[i, j].shop_b.poisson()
-
-                state_new_value = 0
-                # Looping over rent and return probabilities for shop_a and shop_b
-                for rent_a in rent_prob_a: # rent_a and rent_b are tuples -> (rent count, rent probability)
-                    for return_a in return_prob_a:
-                        for rent_b in rent_prob_b:
-                            for return_b in return_prob_b:
-                                # print(f'Rent prob: {rent_a[1]}, Return prob: {return_a[1]}')
-                                # print(f'Rent prob: {rent_b[1]}, Return prob: {return_b[1]}')
-                                # print(f'Policy: {state_array[i, j].policy}')
-                                # print(f'Value: {state_array[i, j].val}')
-                                state_new_value += calc_sigma(rent_a, state_array, rent_b, return_a, return_b, i, j, state_array[i, j].policy)
-                                
-                state_array[i, j].val = state_new_value
-                delta = max(delta, abs(state_value_temp - state_array[i, j].val))
-                
-        iteration += 1
-    print(f'Delta: {delta}')
-    print(f'Iteration: {iteration}')
-    return None
-
-def policy_improvement(state_array):
-    """
-    policy improvement of policy iteration
-
-    Args:
-        state_array (_type_): _description_
-    """
-    print('Policy improvement')
-    policy_stable = True
-    for i in range(state_array.shape[0]):
-        for j in range(state_array.shape[1]): # iterating over each state
-            # print(f'# of cars in State {i},{j}: {state_array[i, j].shop_a.num_cars}')
-            old_action = state_array[i, j].policy # recording initial state value
-
-            rent_prob_a, return_prob_a = state_array[i, j].shop_a.poisson()
-            rent_prob_b, return_prob_b = state_array[i, j].shop_b.poisson()
-
-            action_that_max = []
-            for policy in actions: # iterating over each action
-                state_new_value = 0
-                # Looping over rent and return probabilities for shop_a and shop_b
-                for rent_a in rent_prob_a: # rent_a and rent_b are tuples -> (rent count, rent probability)
-                    for return_a in return_prob_a:
-                        for rent_b in rent_prob_b:
-                            for return_b in return_prob_b:
-                                state_new_value += calc_sigma(rent_a, state_array, rent_b, return_a, return_b, i, j, policy)
-                action_that_max.append(state_new_value)
-            state_array[i, j].policy = actions[np.argmax(action_that_max)]
-
-            if old_action != state_array[i, j].policy:
-                policy_stable = False
-    
-    return policy_stable, state_array    
-
-def plot_save(state_array, iteration):
+def plot_policy(state_array, iteration):
     """
     plotting and saving the results
 
@@ -243,6 +246,32 @@ def plot_save(state_array, iteration):
     plt.savefig('policy_' + str(iteration) + '.png')
     return None  
 
+def plot_value(state_array):
+    """
+    plotting and saving the results
+
+    Args:
+        state_array (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    x = np.arange(0, MAX_NUM_CARS + 1, 1)
+    y = np.arange(0, MAX_NUM_CARS + 1, 1)
+    X, Y = np.meshgrid(x, y)
+
+    Z = np.zeros((MAX_NUM_CARS + 1, MAX_NUM_CARS + 1), dtype=int)
+
+    for i in range(state_array.shape[0]):
+        for j in range(state_array.shape[1]):
+            Z[i, j] = state_array[i, j].val
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_wireframe(X, Y, Z, rcount=20, ccount=20)
+    plt.savefig('value.png')
+    return None
+
 def main():
     """
     main function of the code
@@ -256,20 +285,22 @@ def main():
     
     # agent1 = Agent()
     env1 = Environment()
-    policy_stable = False
-    while (policy_stable is False) and (iteration <= 10):
+    while iteration <= 10:
         print('\n--------------------------------')
         print(f'Policy Iteration: {iteration}')
 
-        policy_eval(env1.state_arr)
-        policy_stable, env1.state_arr = policy_improvement(env1.state_arr)
+        env1.policy_eval() # policy evaluation
+        policy_stable = env1.policy_improvement() # policy improvement
+        plot_policy(env1.state_arr, iteration)
 
-        if policy_stable:
+        if np.all(policy_stable): # checking if all elements are True
             print('Policy is stable')
+            plot_value(env1.state_arr)
+            return None
         else:
             print('Policy is not stable')
         
-        plot_save(env1.state_arr, iteration)
+        
         iteration += 1
     
     
