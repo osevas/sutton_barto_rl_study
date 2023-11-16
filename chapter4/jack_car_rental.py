@@ -6,6 +6,7 @@ Objective: coding example 4.2, Jack's Car Rental
 import random
 import numpy as np
 from scipy.stats import poisson
+import matplotlib.pyplot as plt
 
 actions = list(range(-5, 6, 1))
 MAX_NUM_CARS = 20
@@ -13,7 +14,7 @@ MAX_TRANSFER = 5
 RENT_REWARD = 10
 TRANSFER_REWARD = -2
 GAMMA = 0.9
-THETA = 50
+THETA = 0.001
 
 class Shop:
     """
@@ -108,14 +109,21 @@ def calc_sigma(rent_a, state_array, rent_b, return_a, return_b, i, j, policy):
         # calculating shop's new car counts
         if policy <= 0:
             # shop_b is transferring cars to shop_a
-            new_shop_a_num_car = state_array[i, j].shop_a.num_cars - rent_a[0] + return_a[0] + abs(policy)
-            new_shop_b_num_car = state_array[i, j].shop_b.num_cars - rent_b[0] + return_b[0] - abs(policy)
+            new_shop_a_num_car = int(state_array[i, j].shop_a.num_cars - rent_a[0] + return_a[0] + abs(policy))
+            new_shop_b_num_car = int(state_array[i, j].shop_b.num_cars - rent_b[0] + return_b[0] - abs(policy))
         
         elif policy > 0:
             # shop_b is transferring cars to shop_a
-            new_shop_a_num_car = state_array[i, j].shop_a.num_cars - rent_a[0] + return_a[0] - abs(policy)
-            new_shop_b_num_car = state_array[i, j].shop_b.num_cars - rent_b[0] + return_b[0] + abs(policy)
+            new_shop_a_num_car = int(state_array[i, j].shop_a.num_cars - rent_a[0] + return_a[0] - abs(policy))
+            new_shop_b_num_car = int(state_array[i, j].shop_b.num_cars - rent_b[0] + return_b[0] + abs(policy))
         
+        # To simplify the problem slightly, we assume that there can be no more than 20 cars at each location (any additional cars
+        # are returned to the nationwide company, and thus disappear from the problem)
+        if new_shop_a_num_car > MAX_NUM_CARS:
+            new_shop_a_num_car = MAX_NUM_CARS
+        if new_shop_b_num_car > MAX_NUM_CARS:
+            new_shop_b_num_car = MAX_NUM_CARS
+
         # checking if new car counts are within the limits
         if (new_shop_a_num_car >= 0) and (new_shop_b_num_car >= 0):
             # calculating probability of the state
@@ -125,6 +133,10 @@ def calc_sigma(rent_a, state_array, rent_b, return_a, return_b, i, j, policy):
             reward = (rent_a[0] + rent_b[0]) * RENT_REWARD + policy * TRANSFER_REWARD
 
             state_new_value = total_prob * (reward + GAMMA * state_array[new_shop_a_num_car, new_shop_b_num_car].val)
+        else:
+            state_new_value = 0
+    else:
+        state_new_value = 0
     return state_new_value
 
 def policy_eval(state_array):
@@ -138,10 +150,10 @@ def policy_eval(state_array):
         _type_: _description_
     """
     print('Policy evaluation')
-    delta = 0
+    delta = 1
     iteration = 0
 
-    while (delta < THETA) and (iteration < 1000):
+    while (delta > THETA) and (iteration < 30):
         # looping over states in Environment.state_arr
         for i in range(state_array.shape[0]):
             for j in range(state_array.shape[1]):
@@ -165,8 +177,10 @@ def policy_eval(state_array):
                                 
                 state_array[i, j].val = state_new_value
                 delta = max(delta, abs(state_value_temp - state_array[i, j].val))
-                print(f'Delta: {delta}')
+                
         iteration += 1
+    print(f'Delta: {delta}')
+    print(f'Iteration: {iteration}')
     return None
 
 def policy_improvement(state_array):
@@ -201,7 +215,33 @@ def policy_improvement(state_array):
             if old_action != state_array[i, j].policy:
                 policy_stable = False
     
-    return policy_stable, state_array       
+    return policy_stable, state_array    
+
+def plot_save(state_array, iteration):
+    """
+    plotting and saving the results
+
+    Args:
+        state_array (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    x = np.arange(0, MAX_NUM_CARS + 1, 1)
+    y = np.arange(0, MAX_NUM_CARS + 1, 1)
+    X, Y = np.meshgrid(x, y)
+
+    Z = np.zeros((MAX_NUM_CARS + 1, MAX_NUM_CARS + 1), dtype=int)
+
+    for i in range(state_array.shape[0]):
+        for j in range(state_array.shape[1]):
+            Z[i, j] = state_array[i, j].policy
+
+    _, ax = plt.subplots()
+    CS = ax.contour(X, Y, Z, 20, cmap='RdGy')
+    ax.clabel(CS, inline=True, fontsize=10)
+    plt.savefig('policy_' + str(iteration) + '.png')
+    return None  
 
 def main():
     """
@@ -217,12 +257,19 @@ def main():
     # agent1 = Agent()
     env1 = Environment()
     policy_stable = False
-    while (policy_stable==False) and (iteration <= 1000):
+    while (policy_stable is False) and (iteration <= 10):
+        print('\n--------------------------------')
         print(f'Policy Iteration: {iteration}')
 
         policy_eval(env1.state_arr)
         policy_stable, env1.state_arr = policy_improvement(env1.state_arr)
 
+        if policy_stable:
+            print('Policy is stable')
+        else:
+            print('Policy is not stable')
+        
+        plot_save(env1.state_arr, iteration)
         iteration += 1
     
     
