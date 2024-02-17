@@ -5,11 +5,12 @@ Objective: coding example 5.1, first-visit Monte Carlo prediction for Blackjack
 '''
 # Libraries
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 # Global variables
 GAMMA = 1 # discount factor
-NUM_EPISODES = 10000000 # number of episodes
+NUM_EPISODES = 500000 # number of episodes
 
 class Player:
     """
@@ -130,15 +131,107 @@ def main():
     # initialize the state
     state_value, state_returns = init_state()
     
+    for episode in range(NUM_EPISODES):
+        print(f"Episode: {episode}")
+        # initialize the player and the dealer
+        track_states = []
+        player_sum = np.random.randint(12, 22)
+        dealer_card = np.random.randint(1, 11)
+        usable_ace = np.random.randint(0, 2)
+        track_states.append((player_sum, dealer_card, usable_ace))
 
-    player_sum = np.random.randint(12, 22)
-    dealer_card = np.random.randint(1, 11)
-    usable_ace = np.random.randint(0, 2)
+        player = Player(player_sum, dealer_card, usable_ace)
+        dealer = Dealer(dealer_card)
 
-    player = Player(player_sum, dealer_card, usable_ace)
+        while player.get_value() <= 21:
+            if player.get_value() == 21:
+                will_hit = False
+            else:
+                will_hit = np.random.choice([True, False])
+
+            if will_hit:
+                player.add_card(np.random.randint(1, 11))
+                player_sum = player.get_value()
+                for state in state_value:
+                    if state == (player_sum, dealer_card, usable_ace):
+                        track_states.append((player_sum, dealer_card, usable_ace))
+                if player_sum > 21:
+                    reward = -1
+                    num_states = len(track_states)
+                    for state in track_states:
+                        state_value[state] = reward / num_states
+                    print(f"Player sum: {player_sum}, Dealer card: {dealer.calculate_value()}, Usable ace: {usable_ace}, Reward: {reward}")
+                    break # exit while loop
+            
+            elif not will_hit: # dealer's turn since player has sticked
+                dealer.add_card()
+                dealer_sum = dealer.calculate_value()
+                for state in state_value:
+                    if state == (player_sum, dealer_sum, usable_ace):
+                        track_states.append((player_sum, dealer_sum, usable_ace))
+
+                while dealer_sum < 17:
+                    dealer.add_card()
+                    dealer_sum = dealer.calculate_value()
+                    for state in state_value:
+                        if state == (player_sum, dealer_sum, usable_ace):
+                            track_states.append((player_sum, dealer_sum, usable_ace))
+                
+                if dealer_sum > 21 or player_sum > dealer_sum:
+                    reward = 1
+                elif player_sum == dealer_sum:
+                    reward = 0
+                elif player_sum < dealer_sum:
+                    reward = -1
+
+                num_states = len(track_states)
+                for state in track_states:
+                    state_value[state] = reward / num_states
+                
+                break # exit while loop
     
+    return state_value
+
+def plot_value_function(state_value: dict):
+    """
+    plots the value function
+    """
+    len_state_value = len(state_value)
+    usable_ace = np.zeros((int(len_state_value / 2), 3))
+    no_usable_ace = np.zeros((int(len_state_value / 2), 3))
+
+    i, j = 0, 0
+    for key, value in state_value.items():
+        if key[2] == 0: # no usable ace
+            no_usable_ace[i, 0] = key[0]
+            no_usable_ace[i, 1] = key[1]
+            no_usable_ace[i, 2] = value
+            i += 1
+        elif key[2] == 1: # usable ace
+            usable_ace[j, 0] = key[0]
+            usable_ace[j, 1] = key[1]
+            usable_ace[j, 2] = value
+            j += 1
+        
     
+    fig = plt.figure()
+    ax = fig.add_subplot(121, projection='3d')
+    ax.scatter(usable_ace[:, 0], usable_ace[:, 1], usable_ace[:, 2], c='r', marker='o', )
+    ax.set_xlabel('Player Sum')
+    ax.set_ylabel('Dealer Card')
+    ax.set_zlabel('Value')
+    ax.set_title('Usable Ace')
+
+    ax = fig.add_subplot(122, projection='3d')
+    ax.scatter(no_usable_ace[:, 0], no_usable_ace[:, 1], no_usable_ace[:, 2], c='b', marker='o')
+    ax.set_xlabel('Player Sum')
+    ax.set_ylabel('Dealer Card')
+    ax.set_zlabel('Value')
+    ax.set_title('No Usable Ace')
+
+    plt.show()
     return None
 
 if __name__ == "__main__":
-    main()
+    state_value = main()
+    plot_value_function(state_value)
