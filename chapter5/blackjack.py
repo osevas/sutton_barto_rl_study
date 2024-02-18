@@ -159,17 +159,12 @@ def main():
                     reward = -1
                     num_states = len(track_states)
                     for state in track_states:
-                        state_value[state] = reward / num_states
+                        state_value[state] = state_value[state] + reward / num_states
                     print(f"Player sum: {player_sum}, Dealer card: {dealer.calculate_value()}, Usable ace: {usable_ace}, Reward: {reward}")
                     break # exit while loop
             
             elif not will_hit: # dealer's turn since player has sticked
-                dealer.add_card()
                 dealer_sum = dealer.calculate_value()
-                for state in state_value:
-                    if state == (player_sum, dealer_sum, usable_ace):
-                        track_states.append((player_sum, dealer_sum, usable_ace))
-
                 while dealer_sum < 17:
                     dealer.add_card()
                     dealer_sum = dealer.calculate_value()
@@ -186,7 +181,7 @@ def main():
 
                 num_states = len(track_states)
                 for state in track_states:
-                    state_value[state] = reward / num_states
+                    state_value[state] = state_value[state] + reward / num_states
                 
                 break # exit while loop
     
@@ -235,3 +230,4 @@ def plot_value_function(state_value: dict):
 if __name__ == "__main__":
     state_value = main()
     plot_value_function(state_value)
+    print(len(state_value))
