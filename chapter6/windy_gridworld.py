@@ -17,6 +17,7 @@ class State:
             self.value = 0 # initialization.  initial value is 0
         self.edges = []
         self.action_val = {'up':0, 'down':0, 'right':0, 'left':0}
+        self.loc = [-1, -1]
     
     def update_edges(self, edge: str) -> None:
         """
@@ -33,6 +34,16 @@ class State:
             val (int): new value
         """
         self.action_val[action] = val
+    
+    def record_loc(self, loc:list) -> None:
+        """
+        recording location of the state
+
+        Args:
+            loc (tuple): location of the state
+        """
+        self.loc[0] = loc[0]
+        self.loc[1] = loc[1]
 
 class Gridworld:
     """
@@ -48,6 +59,7 @@ class Gridworld:
         # assigning edges to states
         for i in range(n_grid_y): # (0, 0) is the top left corner of the grid
             for j in range(n_grid_x):
+                self.state_array[i, j].record_loc((i, j))
                 if i == 0 and j == 0:
                     self.state_array[i, j].update_edges('left')
                     self.state_array[i, j].update_edges('up')
@@ -131,6 +143,37 @@ def e_greedy(state:object, timestep:int) -> str:
         return np.random.choice(list(state.action_val.keys()))
     return max(state.action_val, key = state.action_val.get)
 
+def find_next_state(env:object, current_state:object, action:str, wind:list) -> object:
+    """
+    function to find the next state
+
+    Args:
+        current_state (object): _description_
+        action (str): _description_
+        wind (list): _description_
+
+    Returns:
+        object: _description_
+    """
+    if action == 'up':
+        next_state_loc = [current_state.loc[0] - 1 - wind[current_state.loc[1]], current_state.loc[1]]
+    elif action == 'down':
+        next_state_loc = [current_state.loc[0] + 1 - wind[current_state.loc[1]], current_state.loc[1]]
+    elif action == 'right':
+        next_state_loc = [current_state.loc[0] - wind[current_state.loc[1] + 1], current_state.loc[1] + 1]
+    elif action == 'left':
+        next_state_loc = [current_state.loc[0] - wind[current_state.loc[1] - 1], current_state.loc[1] - 1]
+    if next_state_loc[0] < 0:
+        next_state_loc[0] = 0
+    elif next_state_loc[0] > 6:
+        next_state_loc[0] = 6
+    if next_state_loc[1] < 0:
+        next_state_loc[1] = 0
+    elif next_state_loc[1] > 9:
+        next_state_loc[1] = 9
+    next_state = env.state_array[next_state_loc[0], next_state_loc[1]]
+    return next_state
+
 
 def play(environment:object, alpha:float = 0.001, gamma:int = 1, max_iter:int = 50, reward:int = -1) -> None:
     """
@@ -150,7 +193,8 @@ def play(environment:object, alpha:float = 0.001, gamma:int = 1, max_iter:int = 
         timestep = 1
         while not current_state.terminal:
             
-            act1 = e_greedy(current_state, timestep) # action1 of Sarsa
+            act1 = e_greedy(current_state, timestep) # action1 of Sarsa -> string
+            next_state = find_next_state(environment, current_state, act1, environment.wind) # finding the next state after action1
 
             
         
