@@ -1,9 +1,10 @@
 '''
 Author: Onur Aslan
-Date: 2023-01-05
-Objective: coding example 4.1
+Date: 2024-03-23
+Objective: coding example 6.5. Windy Gridworld with Sarsa
 '''
 import numpy as np
+np.set_printoptions(precision=3, linewidth=500)
 
 class State:
     '''
@@ -95,8 +96,21 @@ class Gridworld:
         current_state_vals = np.zeros((self.n_grid_y, self.n_grid_x))
         for i in range(self.n_grid_y):
             for j in range(self.n_grid_x):
-                current_state_vals[i, j] = self.state_array[i, j].value
+                current_state_vals[i, j] = self.state_array[i, j].action_val[max(self.state_array[i, j].action_val, key=self.state_array[i, j].action_val.get)] # max value of the state
         return current_state_vals
+    
+    def env_directions(self) -> np.ndarray:
+        """
+        Showing directions with max values of the states
+
+        Returns:
+            ndarray: current state actions in the grid with max values
+        """
+        current_state_dirs = np.chararray((self.n_grid_y, self.n_grid_x), itemsize = 5)
+        for i in range(self.n_grid_y):
+            for j in range(self.n_grid_x):
+                current_state_dirs[i, j] = max(self.state_array[i, j].action_val, key=self.state_array[i, j].action_val.get) # max value of the state
+        return current_state_dirs
     
     def arr_to_state(self, arr) -> None:
         """
@@ -137,11 +151,12 @@ def e_greedy(state:object, timestep:int) -> str:
     Returns:
         str: _description_
     """
-    epsilon = 1/timestep
+    # epsilon = 1/timestep
+    epsilon = 0.1
     p = np.random.random()
     if p < epsilon:
         return np.random.choice(list(state.action_val.keys()))
-    return max(state.action_val, key = state.action_val.get)
+    return max(state.action_val, key = state.action_val.get) # returns the action in string format
 
 def find_next_state(env:object, current_state:object, action:str, wind:list) -> object:
     """
@@ -160,9 +175,9 @@ def find_next_state(env:object, current_state:object, action:str, wind:list) -> 
     elif action == 'down':
         next_state_loc = [current_state.loc[0] + 1 - wind[current_state.loc[1]], current_state.loc[1]]
     elif action == 'right':
-        next_state_loc = [current_state.loc[0] - wind[current_state.loc[1] + 1], current_state.loc[1] + 1]
+        next_state_loc = [current_state.loc[0] - wind[current_state.loc[1]], current_state.loc[1] + 1]
     elif action == 'left':
-        next_state_loc = [current_state.loc[0] - wind[current_state.loc[1] - 1], current_state.loc[1] - 1]
+        next_state_loc = [current_state.loc[0] - wind[current_state.loc[1]], current_state.loc[1] - 1]
     if next_state_loc[0] < 0:
         next_state_loc[0] = 0
     elif next_state_loc[0] > 6:
@@ -175,7 +190,7 @@ def find_next_state(env:object, current_state:object, action:str, wind:list) -> 
     return next_state
 
 
-def play(environment:object, alpha:float = 0.001, gamma:int = 1, max_iter:int = 50, reward:int = -1) -> None:
+def play(environment:object, alpha:float = 0.5, gamma:int = 1, max_iter:int = 700, reward:int = -1) -> None:
     """
     function to start an iteration
 
@@ -187,25 +202,36 @@ def play(environment:object, alpha:float = 0.001, gamma:int = 1, max_iter:int = 
         max_iter (int, optional): _description_. Defaults to 50.
         reward (int, optional): _description_. Defaults to -1.
     """
-    current_state = environment.state_array[3, 0]
-
-    for i in range(max_iter):
+    
+    for episode in range(max_iter):
+        current_state = environment.state_array[3, 0]
         timestep = 1
         while not current_state.terminal:
             
             act1 = e_greedy(current_state, timestep) # action1 of Sarsa -> string
             next_state = find_next_state(environment, current_state, act1, environment.wind) # finding the next state after action1
 
-            
-        
+            act2 = e_greedy(next_state, timestep) # action2 of Sarsa -> string
 
-
+            # updating the value of the current state
+            current_state.update_state_action_val(act1, current_state.action_val[act1] + alpha*(reward + gamma*next_state.action_val[act2] - current_state.action_val[act1]))
+            current_state = next_state
+            timestep += 1
+        print('Episode: ', episode + 1, ' is completed with ', timestep, ' timesteps')
+    print('Training is completed')
+    print(environment.env_directions())
+    print('\n')
+    print(environment.state_to_arr())
+    
+    return None
 
 
 if __name__ == "__main__":
     env = Gridworld()
-    # agn = Agent()
-    # play(env, agn)
-    state_space_values = env.state_to_arr()
-    print(state_space_values)
-    print(env.state_array[0, 4].edges)
+    
+    # state_space_values = env.state_to_arr()
+    # print(state_space_values)
+    # print(env.state_array[0, 4].edges)
+    
+    play(env)
+    
